@@ -23,6 +23,23 @@ async def get_todolists(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 
 
+@router.patch("/todolists/{todolist_id}/", response_model=TodoListSchema)
+async def update_todolist(
+    todolist_id: int,
+    todolist_update: TodoListCreateSchema,
+    db: AsyncSession = Depends(get_db)
+):
+    todolist = await db.get(TodoList, todolist_id)
+    if not todolist:
+        raise HTTPException(status_code=404, detail="TodoList not found")
+
+    todolist.name = todolist_update.name
+
+    await db.commit()
+    await db.refresh(todolist)
+    return todolist
+
+
 @router.delete("/todolists/{todolist_id}/")
 async def delete_todolist(todolist_id: int, db: AsyncSession = Depends(get_db)):
     todolist = await db.get(TodoList, todolist_id)
@@ -32,6 +49,12 @@ async def delete_todolist(todolist_id: int, db: AsyncSession = Depends(get_db)):
     await db.delete(todolist)
     await db.commit()
     return {"message": "TodoList deleted"}
+
+
+@router.get("/todolists/{todolist_id}/items/", response_model=list[ItemSchema])
+async def get_items(todolist_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Item).filter_by(todo_list_id=todolist_id))
+    return result.scalars().all()
 
 
 @router.post("/todolists/{todolist_id}/items/", response_model=ItemSchema)
@@ -45,12 +68,6 @@ async def add_item(todolist_id: int, item: ItemCreateSchema, db: AsyncSession = 
     await db.commit()
     await db.refresh(new_item)
     return new_item
-
-
-@router.get("/todolists/{todolist_id}/items/", response_model=list[ItemSchema])
-async def get_items(todolist_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Item).filter_by(todo_list_id=todolist_id))
-    return result.scalars().all()
 
 
 @router.patch("/items/{item_id}/", response_model=ItemSchema)
